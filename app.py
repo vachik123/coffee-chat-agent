@@ -389,7 +389,7 @@ class CoffeeChatAgent:
             # Send notification to Vach
             notification_message = MIMEText(notification_content)
             notification_message['to'] = os.getenv("NOTIFICATION_EMAIL", "vachik123@gmail.com")
-            notification_message['from'] = os.getenv("GMAIL_FROM_ADDRESS", "vachagan.melikian@rutgers.edu")
+            notification_message['from'] = os.getenv("GMAIL_FROM_ADDRESS", "vach@vachiverse.com")
             notification_message['subject'] = f'New Booking: {formatted_time}'
             
             notification_raw = base64.urlsafe_b64encode(notification_message.as_bytes()).decode()
