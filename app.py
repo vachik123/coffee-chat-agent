@@ -40,22 +40,23 @@ class GoogleAPIManager:
             'https://www.googleapis.com/auth/gmail.send'
         ]
         
-        # Try environment variable first (for production)
         service_account_json = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
         if service_account_json:
             try:
                 service_account_info = json.loads(service_account_json)
                 creds = service_account.Credentials.from_service_account_info(
                     service_account_info, scopes=scopes)
-                print("✅ Successfully authenticated with service account from environment variable")
-                return creds
-            except json.JSONDecodeError as e:
-                print(f"❌ Error parsing GOOGLE_APPLICATION_CREDENTIALS: {e}")
-                raise ValueError("Invalid JSON in GOOGLE_APPLICATION_CREDENTIALS environment variable")
-        else:
-            print("❌ GOOGLE_APPLICATION_CREDENTIALS environment variable not found")
-            raise ValueError("GOOGLE_APPLICATION_CREDENTIALS environment variable is required for Railway deployment")
-
+                
+                # Impersonate your workspace email
+                impersonation_email = os.getenv("GOOGLE_IMPERSONATION_EMAIL", "vach@vachiverse.com")
+                delegated_creds = creds.with_subject(impersonation_email)
+                
+                print("✅ Successfully authenticated with domain-wide delegation")
+                return delegated_creds
+            except Exception as e:
+                print(f"❌ Domain-wide delegation error: {e}")
+                raise
+            
 class CoffeeChatAgent:
     def __init__(self, cohere_api_key: str):
         self.co = cohere.Client(api_key=cohere_api_key)
@@ -376,7 +377,7 @@ class CoffeeChatAgent:
             # Send to attendee
             attendee_message = MIMEText(attendee_content)
             attendee_message['to'] = attendee_email
-            attendee_message['from'] = os.getenv("GMAIL_FROM_ADDRESS", "vachagan.melikian@rutgers.edu")
+            attendee_message['from'] = os.getenv("GMAIL_FROM_ADDRESS", "vach@vachiverse.com")
             attendee_message['subject'] = f'Coffee Chat Confirmed - {formatted_time}'
             
             attendee_raw = base64.urlsafe_b64encode(attendee_message.as_bytes()).decode()
