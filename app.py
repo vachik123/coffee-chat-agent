@@ -513,10 +513,21 @@ class ChatResponse(BaseModel):
 @app.post("/api/chat", response_model=ChatResponse)
 async def chat_endpoint(request: ChatRequest):
     try:
+        print(f"📝 Received chat request: {request.message}")
+        
         COHERE_API_KEY = os.getenv("COHERE_API_KEY")
+        if not COHERE_API_KEY:
+            print("❌ Missing COHERE_API_KEY")
+            raise HTTPException(status_code=500, detail="Missing COHERE_API_KEY")
+        
+        print("✅ COHERE_API_KEY found")
+        print(f"📊 Conversation history length: {len(request.conversation_history)}")
+        
         agent = CoffeeChatAgent(COHERE_API_KEY)
+        print("✅ Agent created successfully")
         
         response = agent.chat(request.message, request.conversation_history)
+        print("✅ Agent chat completed")
         
         return ChatResponse(
             response=response,
@@ -524,6 +535,10 @@ async def chat_endpoint(request: ChatRequest):
             conversation_history=agent.conversation_history
         )
     except Exception as e:
+        print(f"❌ Chat endpoint error: {str(e)}")
+        print(f"❌ Error type: {type(e)}")
+        import traceback
+        print(f"❌ Traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/availability")
