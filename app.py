@@ -333,9 +333,7 @@ class CoffeeChatAgent:
 
     def send_confirmation_email(self, attendee_email: str, event_details: str) -> Dict:
         """Send confirmation email to attendee AND notification email to Vach"""
-        try:
-            details = json.loads(event_details) if isinstance(event_details, str) else event_details
-            
+        try:            
             details = None
             if event_details and event_details.strip():
                 try:
