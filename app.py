@@ -41,7 +41,7 @@ class GoogleAPIManager:
         ]
         
         # Try environment variable first (for production)
-        service_account_json = os.getenv("GOOGLE_SERVICE_ACCOUNT_JSON")
+        service_account_json = os.getenv("GOOGLE_SERVICE_ACCOUNT")
         if service_account_json:
             service_account_info = json.loads(service_account_json)
             creds = service_account.Credentials.from_service_account_info(
@@ -484,7 +484,10 @@ app = FastAPI(title="Coffee Chat Booking API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "https://yourdomain.com"],
+    allow_origins=[
+        "http://localhost:3000", 
+        "https://coffee-chat-agent-production.up.railway.app"
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -536,4 +539,5 @@ async def health_check():
 # Run the server
 if __name__ == "__main__":
     import uvicorn
+    port = int(os.getenv("PORT", 8000))
     uvicorn.run(app, host="0.0.0.0", port=8000)
