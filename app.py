@@ -498,27 +498,30 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Initialize the agent
-COHERE_API_KEY = os.getenv("COHERE_API_KEY")
-agent = CoffeeChatAgent(COHERE_API_KEY)
-
 # Request/Response models
 class ChatRequest(BaseModel):
     message: str
     conversation_id: str = None
+    conversation_history: List = []
 
 class ChatResponse(BaseModel):
     response: str
     conversation_id: str
+    conversation_history: List = []
 
-# API Endpoints
+# Endpoints
 @app.post("/api/chat", response_model=ChatResponse)
 async def chat_endpoint(request: ChatRequest):
     try:
-        response = agent.chat(request.message)
+        COHERE_API_KEY = os.getenv("COHERE_API_KEY")
+        agent = CoffeeChatAgent(COHERE_API_KEY)
+        
+        response = agent.chat(request.message, request.conversation_history)
+        
         return ChatResponse(
             response=response,
-            conversation_id=request.conversation_id or "default"
+            conversation_id=request.conversation_id or "default",
+            conversation_history=agent.conversation_history
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -526,6 +529,8 @@ async def chat_endpoint(request: ChatRequest):
 @app.get("/api/availability")
 async def check_availability(date_range: str = "next week"):
     try:
+        COHERE_API_KEY = os.getenv("COHERE_API_KEY")
+        agent = CoffeeChatAgent(COHERE_API_KEY)
         return agent.check_calendar_availability(date_range)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -533,6 +538,8 @@ async def check_availability(date_range: str = "next week"):
 @app.get("/api/calendars")
 async def list_calendars():
     try:
+        COHERE_API_KEY = os.getenv("COHERE_API_KEY")
+        agent = CoffeeChatAgent(COHERE_API_KEY)
         return {"calendars": agent.list_available_calendars()}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -545,4 +552,4 @@ async def health_check():
 if __name__ == "__main__":
     import uvicorn
     port = int(os.getenv("PORT", 8000))
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=port)
