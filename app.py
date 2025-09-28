@@ -336,9 +336,27 @@ class CoffeeChatAgent:
         try:
             details = json.loads(event_details) if isinstance(event_details, str) else event_details
             
-            # Format the time nicely
-            event_time = datetime.strptime(f"{details['date']} {details['time']}", "%Y-%m-%d %H:%M")
-            formatted_time = event_time.strftime("%A, %B %d at %I:%M %p EST")
+            details = None
+            if event_details and event_details.strip():
+                try:
+                    details = json.loads(event_details)
+                except json.JSONDecodeError:
+                    print("⚠️ Invalid JSON in event_details, using defaults")
+                    details = None
+            
+            # Use defaults if no valid details provided
+            if details is None:
+                details = {
+                    "date": "TBD",
+                    "time": "TBD", 
+                    "meet_link": "Check your calendar invite",
+                    "topic": "General 1:1"
+                }
+                formatted_time = "Check your calendar for details"
+            else:
+                # Use the parsed details
+                event_time = datetime.strptime(f"{details['date']} {details['time']}", "%Y-%m-%d %H:%M")
+                formatted_time = event_time.strftime("%A, %B %d at %I:%M %p EST")
             
             # Email 1: Confirmation to attendee
             attendee_content = f"""Hi there!
