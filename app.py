@@ -41,17 +41,20 @@ class GoogleAPIManager:
         ]
         
         # Try environment variable first (for production)
-        service_account_json = os.getenv("GOOGLE_SERVICE_ACCOUNT")
+        service_account_json = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
         if service_account_json:
-            service_account_info = json.loads(service_account_json)
-            creds = service_account.Credentials.from_service_account_info(
-                service_account_info, scopes=scopes)
+            try:
+                service_account_info = json.loads(service_account_json)
+                creds = service_account.Credentials.from_service_account_info(
+                    service_account_info, scopes=scopes)
+                print("✅ Successfully authenticated with service account from environment variable")
+                return creds
+            except json.JSONDecodeError as e:
+                print(f"❌ Error parsing GOOGLE_APPLICATION_CREDENTIALS: {e}")
+                raise ValueError("Invalid JSON in GOOGLE_APPLICATION_CREDENTIALS environment variable")
         else:
-            # Fallback to file (for local development)
-            creds = service_account.Credentials.from_service_account_file(
-                self.service_account_file, scopes=scopes)
-        
-        return creds
+            print("❌ GOOGLE_APPLICATION_CREDENTIALS environment variable not found")
+            raise ValueError("GOOGLE_APPLICATION_CREDENTIALS environment variable is required for Railway deployment")
 
 class CoffeeChatAgent:
     def __init__(self, cohere_api_key: str):
