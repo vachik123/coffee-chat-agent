@@ -550,7 +550,8 @@ async def chat_endpoint(request: ChatRequest):
         agent = CoffeeChatAgent(COHERE_API_KEY)
         print("✅ Agent created successfully")
         
-        response = agent.chat(request.message, request.conversation_history)
+        user_timezone = getattr(request, 'user_timezone', 'America/New_York')
+        response = agent.chat(request.message, request.conversation_history, user_timezone)
         print("✅ Agent chat completed")
         
         return ChatResponse(
