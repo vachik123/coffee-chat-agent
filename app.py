@@ -169,8 +169,8 @@ class CoffeeChatAgent:
                     
             # Query for busy times
             body = {
-                "timeMin": start_time.isoformat() + 'Z',
-                "timeMax": end_time.isoformat() + 'Z',
+                "timeMin": start_time.isoformat(),  # Keep timezone info
+                "timeMax": end_time.isoformat(),   # Keep timezone info  
                 "items": [{"id": os.getenv("CALENDAR_ID", "vachik123@gmail.com")}]
             }
             
