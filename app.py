@@ -71,8 +71,13 @@ class CoffeeChatAgent:
                 "name": "check_calendar_availability",
                 "description": "Check Vach's calendar availability for the specified date range",
                 "parameter_definitions": {
-                    "date_range": {
-                        "description": "Date range to check (e.g., 'next week', 'this Friday', 'January 15-20')",
+                    "start_date": {
+                        "description": "Start date in YYYY-MM-DD format",
+                        "type": "str",
+                        "required": True
+                    },
+                    "end_date": {
+                        "description": "End date in YYYY-MM-DD format", 
                         "type": "str",
                         "required": True
                     },
@@ -88,7 +93,7 @@ class CoffeeChatAgent:
                 "description": "Create a Google Calendar event with Google Meet link",
                 "parameter_definitions": {
                     "date": {
-                        "description": "Meeting date in YYYY-MM-DD format",
+                        "description": "Meeting date in YYYY-MM-DD format (e.g., 2025-10-03 for next Thursday)",
                         "type": "str",
                         "required": True
                     },
@@ -132,26 +137,6 @@ class CoffeeChatAgent:
             }
         ]
 
-    def _parse_date_range(self, date_range: str) -> tuple:
-        """Parse natural language date range into datetime objects"""
-        now = datetime.now()
-        
-        if "next week" in date_range.lower():
-            start = now + timedelta(days=(7 - now.weekday()))
-            end = start + timedelta(days=7)
-        elif "this week" in date_range.lower():
-            start = now
-            end = now + timedelta(days=(6 - now.weekday()))
-        elif "tomorrow" in date_range.lower():
-            start = now + timedelta(days=1)
-            end = start + timedelta(days=1)
-        else:
-            # Default to next 7 days
-            start = now
-            end = now + timedelta(days=7)
-        
-        return start, end
-
     def list_available_calendars(self):
         """List all available calendars"""
         try:
@@ -169,15 +154,19 @@ class CoffeeChatAgent:
             print(f"Error listing calendars: {e}")
             return []
 
-        # Add this method to your agent class
-
-    def check_calendar_availability(self, date_range: str, duration: int = 30) -> Dict:
+    def check_calendar_availability(self, start_date: str, end_date: str, duration: int = 30) -> Dict:
         """Check real calendar availability using Google Calendar API"""
         try:
-            print(f"🗓️  Checking calendar availability for: {date_range}")
+            print(f"🗓️  Checking calendar availability from {start_date} to {end_date}")
+        
+            eastern = pytz.timezone('America/New_York')
             
-            start_time, end_time = self._parse_date_range(date_range)
-            
+            # Parse the specific dates passed by the LLM
+            start_time = eastern.localize(datetime.strptime(start_date, "%Y-%m-%d").replace(hour=9))
+            end_time = eastern.localize(datetime.strptime(end_date, "%Y-%m-%d").replace(hour=21))
+
+            print(f"📅 Searching availability from {start_time.strftime('%Y-%m-%d')} to {end_time.strftime('%Y-%m-%d')}")
+                    
             # Query for busy times
             body = {
                 "timeMin": start_time.isoformat() + 'Z',
@@ -191,7 +180,6 @@ class CoffeeChatAgent:
 
             available_slots = []
             current_date = start_time.date()
-            end_date = end_time.date()
             
             # Use Eastern timezone
             eastern = pytz.timezone('America/New_York')
@@ -460,7 +448,9 @@ class CoffeeChatAgent:
         IMPORTANT: Today is {current_weekday}, {current_date}. When creating events:
         - Always use {datetime.now().year} as the year unless the date has passed, then use {datetime.now().year + 1}
         - If someone says "Wednesday" they mean the NEXT upcoming Wednesday
-        - Never create events in past years
+        - Never create events in the past
+        - Always calculate the exact future dates yourself and pass specific dates to tools.
+        - Never pass vague terms like "this Thursday" to the availability checker.
 
         While you can book meetings without a specific topic, 
         it's helpful to ask what the person wants to discuss (career advice, technical questions, project collaboration, etc.) 
@@ -480,7 +470,7 @@ class CoffeeChatAgent:
         """
 
         response = self.co.chat(
-            model="command-r-08-2024",
+            model="command-a-03-2025",
             message=message,
             tools=self.tools,
             preamble=preamble,
@@ -501,7 +491,7 @@ class CoffeeChatAgent:
 
             # Continue conversation with tool results
             response = self.co.chat(
-                model="command-r-08-2024",
+                model="command-a-03-2025",
                 message="",
                 tools=self.tools,
                 chat_history=response.chat_history,
@@ -576,11 +566,11 @@ async def chat_endpoint(request: ChatRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/availability")
-async def check_availability(date_range: str = "next week"):
+async def check_availability(start_date: str, end_date: str, duration: int = 30):
     try:
         COHERE_API_KEY = os.getenv("COHERE_API_KEY")
         agent = CoffeeChatAgent(COHERE_API_KEY)
-        return agent.check_calendar_availability(date_range)
+        return agent.check_calendar_availability(start_date, end_date, duration)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
