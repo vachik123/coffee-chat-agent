@@ -10,6 +10,16 @@
         .agent { background: #f5f5f5; }
         input[type="text"] { width: 80%; padding: 10px; }
         button { padding: 10px 20px; }
+        
+        /* Only new styles for time slots */
+        .time-slots { margin: 10px 0; }
+        .time-slot-btn { 
+            margin: 5px; 
+            padding: 8px 15px; 
+            cursor: pointer;
+            background: white;
+            border: 1px solid #ccc;
+        }
     </style>
 </head>
 <body>
@@ -19,11 +29,13 @@
     <button onclick="sendMessage()">Send</button>
 
     <script>
-        const API_BASE = 'https://coffee-chat-agent-production.up.railway.app/'; // Replace with your backend URL
+        const API_BASE = 'https://coffee-chat-agent-production.up.railway.app';
+        let conversationHistory = [];
+        let conversationId = 'session_' + Date.now();
         
-        async function sendMessage() {
+        async function sendMessage(messageOverride = null) {
             const input = document.getElementById('messageInput');
-            const message = input.value.trim();
+            const message = messageOverride || input.value.trim();
             if (!message) return;
             
             addMessage(message, 'user');
@@ -33,11 +45,23 @@
                 const response = await fetch(`${API_BASE}/api/chat`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ message })
+                    body: JSON.stringify({ 
+                        message,
+                        conversation_id: conversationId,
+                        conversation_history: conversationHistory
+                    })
                 });
                 
                 const data = await response.json();
+                conversationHistory = data.conversation_history || [];
+                
                 addMessage(data.response, 'agent');
+                
+                // Display time slots if available
+                if (data.available_slots && data.available_slots.length > 0) {
+                    displayTimeSlots(data.available_slots);
+                }
+                
             } catch (error) {
                 addMessage('Error: Could not connect to booking system', 'agent');
             }
@@ -49,6 +73,26 @@
             div.className = `message ${sender}`;
             div.textContent = text;
             chat.appendChild(div);
+            chat.scrollTop = chat.scrollHeight;
+        }
+        
+        function displayTimeSlots(slots) {
+            const chat = document.getElementById('chat');
+            const container = document.createElement('div');
+            container.className = 'time-slots';
+            
+            slots.forEach(slot => {
+                const btn = document.createElement('button');
+                btn.className = 'time-slot-btn';
+                btn.textContent = slot.formatted;
+                btn.onclick = () => {
+                    sendMessage(slot.time);
+                    container.remove();
+                };
+                container.appendChild(btn);
+            });
+            
+            chat.appendChild(container);
             chat.scrollTop = chat.scrollHeight;
         }
         

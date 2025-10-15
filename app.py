@@ -349,35 +349,35 @@ class CoffeeChatAgent:
             # Email 1: Confirmation to attendee
             attendee_content = f"""Hi there!
 
-            This is an automated confirmation from Vach's booking system.
+This is an automated confirmation from Vach's coffee chat agent :P
 
-            Your coffee chat with Vach is confirmed:
+Your coffee chat with Vach is confirmed:
 
-            📅 When: {formatted_time}
-            📹 Google Meet: {details.get('meet_link', 'Link will be in calendar invite')}
-            💬 Topic: {details.get('topic', 'General chat')}
-            📧 Calendar Invite: Sent to {attendee_email}
+📅 When: {formatted_time}
+📹 Google Meet: {details.get('meet_link', 'Link will be in calendar invite')}
+💬 Topic: {details.get('topic', 'General chat')}
+📧 Calendar Invite: Sent to {attendee_email}
 
-            I'm looking forward to our conversation!
+I'm looking forward to our conversation!
 
-            Best regards,
-            Vach
+Best regards,
+Vach
             """
                     
             # Email 2: Notification to Vach
             notification_content = f"""New Coffee Chat Booking!
 
-            Someone just booked a coffee chat with you:
+Someone just booked a coffee chat with you:
 
-            👤 Attendee: {attendee_email}
-            📅 When: {formatted_time}
-            📹 Google Meet: {details.get('meet_link', 'Link in calendar')}
-            💬 Topic: {details.get('topic', 'General chat')}
+👤 Attendee: {attendee_email}
+📅 When: {formatted_time}
+📹 Google Meet: {details.get('meet_link', 'Link in calendar')}
+💬 Topic: {details.get('topic', 'General chat')}
 
-            The calendar event has been created and confirmation sent to the attendee.
+The calendar event has been created and confirmation sent to the attendee.
 
-            ---
-            Automated notification from your coffee chat booking system.
+---
+Automated notification from your coffee chat agent.
             """
         
             # Send to attendee
@@ -457,8 +457,8 @@ class CoffeeChatAgent:
 
         Please ask what the person wants to discuss (career advice, technical questions, project collaboration, etc.) 
         as this makes the conversation more valuable for both parties. 
-        Feel free to ask "What would you like to chat about?" or 
-        "Is there anything specific you'd like to discuss?" to help Vach prepare for a more meaningful conversation.
+        Feel free to ask "What would you like to discuss with Vach?" or 
+        "Is there anything specific you'd like to discuss with Vach?" to help Vach prepare for a more meaningful conversation.
 
         Your job is to:
         1. Understand what the person wants to discuss (career advice, technical questions, collaboration, etc.)
@@ -467,8 +467,16 @@ class CoffeeChatAgent:
         4. Create the Google Meet event in the calendar
         5. Send a professional confirmation email via Gmail
 
-        Be friendly, professional, and helpful. Always ask for their email when you need to create the event.
-        When showing available times, present them clearly and ask the user to pick one.
+        CRITICAL INSTRUCTIONS FOR SHOWING AVAILABILITY:
+        - When you check calendar availability, DO NOT list the times in your text response
+        - Instead, simply say "I found some available times for [date]. Please select one that works for you."
+        - The frontend will display the times as clickable buttons
+        - Wait for the user to select a time by saying something like "9 am" or "12:30 pm"
+
+        AFTER successfully booking the meeting:
+        - Confirm the booking with date, time, and Google Meet link
+        - Keep the message short and friendly
+        - Do NOT ask if there's anything else
         """
 
         response = self.co.chat(
@@ -535,6 +543,8 @@ class ChatResponse(BaseModel):
     response: str
     conversation_id: str
     conversation_history: List = []
+    booking_completed: bool = False
+    available_slots: List = []  # Add this field
 
 # Endpoints
 @app.post("/api/chat", response_model=ChatResponse)
@@ -544,27 +554,44 @@ async def chat_endpoint(request: ChatRequest):
         
         COHERE_API_KEY = os.getenv("COHERE_API_KEY")
         if not COHERE_API_KEY:
-            print("❌ Missing COHERE_API_KEY")
             raise HTTPException(status_code=500, detail="Missing COHERE_API_KEY")
         
-        print("✅ COHERE_API_KEY found")
-        print(f"📊 Conversation history length: {len(request.conversation_history)}")
-        
         agent = CoffeeChatAgent(COHERE_API_KEY)
-        print("✅ Agent created successfully")
-        
         user_timezone = getattr(request, 'user_timezone', 'America/New_York')
-        response = agent.chat(request.message, request.conversation_history, user_timezone=user_timezone)
-        print("✅ Agent chat completed")
+        
+        response_text = agent.chat(
+            request.message, 
+            request.conversation_history, 
+            user_timezone=user_timezone
+        )
+        
+        # Extract available slots from conversation history
+        available_slots = []
+        booking_completed = False
+        
+        for msg in agent.conversation_history:
+            if hasattr(msg, 'tool_calls') and msg.tool_calls:
+                for tool_call in msg.tool_calls:
+                    if tool_call.name == "send_confirmation_email":
+                        booking_completed = True
+            
+            # Check tool results for availability data
+            if hasattr(msg, 'tool_results') and msg.tool_results:
+                for result in msg.tool_results:
+                    if isinstance(result, dict) and 'outputs' in result:
+                        for output in result['outputs']:
+                            if isinstance(output, dict) and 'available_slots' in output:
+                                available_slots = output['available_slots']
         
         return ChatResponse(
-            response=response,
+            response=response_text,
             conversation_id=request.conversation_id or "default",
-            conversation_history=agent.conversation_history
+            conversation_history=agent.conversation_history,
+            booking_completed=booking_completed,
+            available_slots=available_slots
         )
     except Exception as e:
         print(f"❌ Chat endpoint error: {str(e)}")
-        print(f"❌ Error type: {type(e)}")
         import traceback
         print(f"❌ Traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=str(e))
