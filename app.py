@@ -165,15 +165,14 @@ class CoffeeChatAgent:
             # Parse the specific dates passed by the LLM
             start_time = eastern.localize(datetime.strptime(start_date, "%Y-%m-%d").replace(hour=9))
             end_time = eastern.localize(datetime.strptime(end_date, "%Y-%m-%d").replace(hour=21))
-
             end_date_parsed = datetime.strptime(end_date, "%Y-%m-%d").date()
 
             print(f"📅 Searching availability from {start_time.strftime('%Y-%m-%d')} to {end_time.strftime('%Y-%m-%d')}")
                     
             # Query for busy times
             body = {
-                "timeMin": start_time.isoformat(),  # Keep timezone info
-                "timeMax": end_time.isoformat(),   # Keep timezone info  
+                "timeMin": start_time.isoformat(),
+                "timeMax": end_time.isoformat(),
                 "items": [{"id": os.getenv("CALENDAR_ID", "vachik123@gmail.com")}]
             }
             
@@ -184,19 +183,15 @@ class CoffeeChatAgent:
             available_slots = []
             current_date = start_time.date()
             
-            # Use Eastern timezone
-            eastern = pytz.timezone('America/New_York')
-
             min_advance_hours = 12
             earliest_booking_time = datetime.now(eastern) + timedelta(hours=min_advance_hours)
-    
+
             while current_date <= end_date_parsed:
                 # Skip weekends
-                if current_date.weekday() < 5:  # Monday = 0, Sunday = 6
+                if current_date.weekday() < 5:
                     # Check 9 AM to 9 PM in 30-minute intervals
                     for hour in range(9, 21):
                         for minute in [0, 30]:
-                            # Create timezone-aware datetime for Eastern timezone
                             naive_dt = datetime.combine(current_date, datetime.min.time().replace(hour=hour, minute=minute))
                             slot_start = eastern.localize(naive_dt)
                             slot_end = slot_start + timedelta(minutes=duration)
@@ -204,13 +199,11 @@ class CoffeeChatAgent:
                             # Check if this slot conflicts with busy times
                             is_free = True
                             for busy in busy_times:
-                                # Parse busy times (they come as UTC with 'Z' suffix)
                                 busy_start_str = busy['start'].replace('Z', '+00:00')
                                 busy_end_str = busy['end'].replace('Z', '+00:00')
                                 busy_start = datetime.fromisoformat(busy_start_str)
                                 busy_end = datetime.fromisoformat(busy_end_str)
                                 
-                                # Convert to Eastern timezone for comparison
                                 busy_start = busy_start.astimezone(eastern)
                                 busy_end = busy_end.astimezone(eastern)
                                 
@@ -218,7 +211,6 @@ class CoffeeChatAgent:
                                     is_free = False
                                     break
                             
-                            # Compare with current time (timezone-aware)
                             current_time = datetime.now(eastern)
                             if is_free and slot_start > earliest_booking_time:
                                 available_slots.append({
@@ -230,13 +222,18 @@ class CoffeeChatAgent:
                 
                 current_date += timedelta(days=1)
             
-            # Limit to first 5 slots to avoid overwhelming the user
+            # Limit to first 5 slots
             available_slots = available_slots[:5]
             
+            # Store full data for frontend
+            self.last_available_slots = available_slots
+            
+            # Return minimal info to Cohere (no actual times!)
             return {
-                "available_slots": available_slots,
-                "duration": duration,
-                "timezone": "EST"
+                "status": "success",
+                "slots_found": len(available_slots),
+                "date_range": f"{start_date} to {end_date}",
+                "message": f"Found {len(available_slots)} available time slots. The frontend will display them as buttons for the user to select."
             }
             
         except HttpError as error:
