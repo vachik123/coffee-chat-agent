@@ -184,10 +184,9 @@ class CoffeeChatAgent:
             # Use Eastern timezone
             eastern = pytz.timezone('America/New_York')
 
-            min_advance_hours = 24
+            min_advance_hours = 12
             earliest_booking_time = datetime.now(eastern) + timedelta(hours=min_advance_hours)
     
-            
             while current_date <= end_date:
                 # Skip weekends
                 if current_date.weekday() < 5:  # Monday = 0, Sunday = 6
@@ -431,7 +430,7 @@ class CoffeeChatAgent:
         else:
             return {"error": f"Unknown tool: {tool_name}"}
 
-    def chat(self, message: str, conversation_history: List = None):
+    def chat(self, message: str, conversation_history: List = None, user_timezone: str = "America/New_York"):
         """Main chat interface with the agent"""
         if conversation_history is None:
             conversation_history = self.conversation_history
@@ -527,6 +526,7 @@ class ChatRequest(BaseModel):
     message: str
     conversation_id: str = None
     conversation_history: List = []
+    user_timezone: str = "America/New_York"
 
 class ChatResponse(BaseModel):
     response: str
@@ -551,7 +551,7 @@ async def chat_endpoint(request: ChatRequest):
         print("✅ Agent created successfully")
         
         user_timezone = getattr(request, 'user_timezone', 'America/New_York')
-        response = agent.chat(request.message, request.conversation_history, user_timezone)
+        response = agent.chat(request.message, request.conversation_history, user_timezone=user_timezone)
         print("✅ Agent chat completed")
         
         return ChatResponse(
