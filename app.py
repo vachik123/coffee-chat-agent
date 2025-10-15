@@ -165,6 +165,8 @@ class CoffeeChatAgent:
             start_time = eastern.localize(datetime.strptime(start_date, "%Y-%m-%d").replace(hour=9))
             end_time = eastern.localize(datetime.strptime(end_date, "%Y-%m-%d").replace(hour=21))
 
+            end_date_parsed = datetime.strptime(end_date, "%Y-%m-%d").date()
+
             print(f"📅 Searching availability from {start_time.strftime('%Y-%m-%d')} to {end_time.strftime('%Y-%m-%d')}")
                     
             # Query for busy times
@@ -187,7 +189,7 @@ class CoffeeChatAgent:
             min_advance_hours = 12
             earliest_booking_time = datetime.now(eastern) + timedelta(hours=min_advance_hours)
     
-            while current_date <= end_date:
+            while current_date <= end_date_parsed:
                 # Skip weekends
                 if current_date.weekday() < 5:  # Monday = 0, Sunday = 6
                     # Check 9 AM to 9 PM in 30-minute intervals
@@ -245,7 +247,8 @@ class CoffeeChatAgent:
         """Create real Google Calendar event with Google Meet"""
         try:
             # Parse datetime
-            event_datetime = datetime.strptime(f"{date} {time}", "%Y-%m-%d %H:%M")
+            eastern = pytz.timezone('America/New_York')
+            event_datetime = eastern.localize(datetime.strptime(f"{date} {time}", "%Y-%m-%d %H:%M"))
             end_datetime = event_datetime + timedelta(minutes=duration)
             
             # Create event
