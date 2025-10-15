@@ -470,9 +470,10 @@ Automated notification from your coffee chat agent.
 
         CRITICAL INSTRUCTIONS FOR SHOWING AVAILABILITY:
         - When you check calendar availability, DO NOT list the times in your text response
-        - Instead, simply say "I found some available times for [date]. Please select one that works for you."
-        - The frontend will display the times as clickable buttons
-        - Wait for the user to select a time by saying something like "9 am" or "12:30 pm"
+        - DO NOT write times like "09:00", "09:30", etc. in your message
+        - Simply say something short like "I found some available times for [day]. Pick one that works for you." or "Vach is free tomorrow. Which time works?"
+        - The frontend will automatically display clickable time buttons - you don't need to show times at all
+        - Wait for the user to select a time
 
         AFTER successfully booking the meeting, do NOT ask if there's anything else
         """
