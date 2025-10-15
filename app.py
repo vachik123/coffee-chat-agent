@@ -474,10 +474,7 @@ Automated notification from your coffee chat agent.
         - The frontend will display the times as clickable buttons
         - Wait for the user to select a time by saying something like "9 am" or "12:30 pm"
 
-        AFTER successfully booking the meeting:
-        - Confirm the booking with date, time, and Google Meet link
-        - Keep the message short and friendly
-        - Do NOT ask if there's anything else
+        AFTER successfully booking the meeting, do NOT ask if there's anything else
         """
 
         response = self.co.chat(
@@ -575,20 +572,14 @@ async def chat_endpoint(request: ChatRequest):
         available_slots = agent.last_available_slots
         booking_completed = False
         
-        for msg in agent.conversation_history:
-            if hasattr(msg, 'tool_calls') and msg.tool_calls:
-                for tool_call in msg.tool_calls:
+        # Check if send_confirmation_email was just called
+        if agent.conversation_history:
+            last_msg = agent.conversation_history[-1] if len(agent.conversation_history) > 0 else None
+            if hasattr(last_msg, 'tool_calls') and last_msg.tool_calls:
+                for tool_call in last_msg.tool_calls:
                     if tool_call.name == "send_confirmation_email":
                         booking_completed = True
-            
-            # Check if send_confirmation_email was just called
-            if agent.conversation_history:
-                last_msg = agent.conversation_history[-1] if len(agent.conversation_history) > 0 else None
-                if hasattr(last_msg, 'tool_calls') and last_msg.tool_calls:
-                    for tool_call in last_msg.tool_calls:
-                        if tool_call.name == "send_confirmation_email":
-                            booking_completed = True
-                            available_slots = []  # Clear slots after booking
+                        available_slots = []  # Clear slots after booking
         
         return ChatResponse(
             response=response_text,
