@@ -63,6 +63,7 @@ class CoffeeChatAgent:
         self.google_api = GoogleAPIManager()
         self.conversation_history = []
         self.tools = self._setup_tools()
+        self.last_available_slots = []
         
     def _setup_tools(self):
         """Define the tools available to the agent"""
@@ -494,6 +495,11 @@ Automated notification from your coffee chat agent.
             tool_results = []
             for tool_call in response.tool_calls:
                 result = self.execute_tool(tool_call)
+
+                if tool_call.name == "check_calendar_availability" and isinstance(result, dict):
+                    if 'available_slots' in result:
+                        self.last_available_slots = result['available_slots']
+
                 tool_results.append({
                     "call": tool_call,
                     "outputs": [result]
@@ -566,7 +572,7 @@ async def chat_endpoint(request: ChatRequest):
         )
         
         # Extract available slots from conversation history
-        available_slots = []
+        available_slots = agent.last_available_slots
         booking_completed = False
         
         for msg in agent.conversation_history:
@@ -575,13 +581,14 @@ async def chat_endpoint(request: ChatRequest):
                     if tool_call.name == "send_confirmation_email":
                         booking_completed = True
             
-            # Check tool results for availability data
-            if hasattr(msg, 'tool_results') and msg.tool_results:
-                for result in msg.tool_results:
-                    if isinstance(result, dict) and 'outputs' in result:
-                        for output in result['outputs']:
-                            if isinstance(output, dict) and 'available_slots' in output:
-                                available_slots = output['available_slots']
+            # Check if send_confirmation_email was just called
+            if agent.conversation_history:
+                last_msg = agent.conversation_history[-1] if len(agent.conversation_history) > 0 else None
+                if hasattr(last_msg, 'tool_calls') and last_msg.tool_calls:
+                    for tool_call in last_msg.tool_calls:
+                        if tool_call.name == "send_confirmation_email":
+                            booking_completed = True
+                            available_slots = []  # Clear slots after booking
         
         return ChatResponse(
             response=response_text,
