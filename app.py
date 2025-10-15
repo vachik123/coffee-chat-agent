@@ -465,6 +465,14 @@ Automated notification from your coffee chat agent.
         4. Create the Google Meet event in the calendar
         5. Send a professional confirmation email via Gmail
 
+        NEVER create an event without explicitly asking for and receiving the user's email address first.
+        NEVER use placeholder emails like "user@example.com" - these are not valid.
+
+        WHEN USER SELECTS A TIME:
+        - First check: Do I have their email address?
+        - If NO email: Ask "What's your email address?" and WAIT for response
+        - If YES email: Create the event with create_google_meet_event tool
+
         CRITICAL INSTRUCTIONS FOR SHOWING AVAILABILITY:
         - When you check calendar availability, DO NOT list the times in your text response
         - DO NOT write times like "09:00", "09:30", etc. in your message
